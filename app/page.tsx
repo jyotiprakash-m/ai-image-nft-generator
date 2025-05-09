@@ -2,12 +2,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash } from "lucide-react";
 
 type GenerateImageResponse = {
   imageUrl: string;
   description: string;
   title: string;
+  tokenId?: number;
   createdAt?: number;
 };
 
@@ -32,6 +33,11 @@ export default function Home() {
   const saveToHistory = (data: GenerateImageResponse) => {
     const record = { ...data, createdAt: Date.now() };
     const updated = [record, ...history.slice(0, 9)];
+    setHistory(updated);
+    localStorage.setItem("generated_images", JSON.stringify(updated));
+  };
+  const handleDeleteFromHistory = (indexToDelete: number) => {
+    const updated = history.filter((_, index) => index !== indexToDelete);
     setHistory(updated);
     localStorage.setItem("generated_images", JSON.stringify(updated));
   };
@@ -104,15 +110,31 @@ export default function Home() {
         </h2>
         <div className="flex flex-col gap-3 items-center">
           {history.map((item, index) => (
-            <img
+            <div
               key={index}
-              src={item.imageUrl}
-              alt={item.title}
-              onClick={() => handleSelectFromHistory(item)}
-              onKeyUp={() => handleSelectFromHistory(item)}
-              className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:scale-110 transition duration-300 ring-1 ring-gray-300 hover:ring-blue-400"
+              className="relative group w-16 h-16"
               title={item.title}
-            />
+            >
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                onClick={() => handleSelectFromHistory(item)}
+                onKeyUp={() => handleSelectFromHistory(item)}
+                className="w-full h-full object-cover rounded-lg cursor-pointer hover:scale-105 transition duration-300 ring-1 ring-gray-300 hover:ring-blue-400"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteFromHistory(index);
+                }}
+                title="Delete from history"
+                className="absolute -top-3 -right-3  bg-white rounded-full"
+              >
+                <Trash className="h-4 w-4 text-red-600  " />
+              </Button>
+            </div>
           ))}
         </div>
       </aside>
