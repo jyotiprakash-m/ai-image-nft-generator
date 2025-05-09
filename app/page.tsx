@@ -2,7 +2,17 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { Loader2, Trash } from "lucide-react";
+import {
+  Download,
+  Link2Icon,
+  Loader2,
+  Share,
+  Share2,
+  Trash,
+} from "lucide-react";
+import CountdownTimer from "@/components/custom/CountdownTimer";
+import Link from "next/link";
+import { SignedIn, UserButton } from "@clerk/nextjs";
 
 type GenerateImageResponse = {
   imageUrl: string;
@@ -68,6 +78,19 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+  // add downloading image
+  const downloadImage = async (imageUrl: string) => {
+    const res = await fetch(
+      `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
+    );
+    const blob = await res.blob();
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `generated-image-${Date.now()}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   const handleMint = async () => {
@@ -141,6 +164,20 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative flex-1 flex flex-col items-center px-4 py-10 max-w-3xl mx-auto">
+        <div className="w-full flex justify-end mb-4 gap-2 items-center">
+          <Link
+            href="https://testnets.opensea.io/collection/dall-e-generative-art"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-fit bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-lg rounded transition duration-300"
+          >
+            NFT Gallery
+          </Link>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
+
         {/* Loader Overlay */}
         {loading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -175,6 +212,15 @@ export default function Home() {
               alt="Generated"
               className="w-full max-w-md mx-auto rounded-lg shadow-lg transition hover:scale-105 duration-300"
             />
+            <div className="flex justify-center items-center gap-4 mt-4">
+              <CountdownTimer url={generateImageResponse.imageUrl} />
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                onClick={() => downloadImage(generateImageResponse.imageUrl)}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
 
