@@ -1,103 +1,192 @@
-import Image from "next/image";
+"use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+
+type GenerateImageResponse = {
+  imageUrl: string;
+  description: string;
+  title: string;
+  createdAt?: number;
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [prompt, setPrompt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [minting, setMinting] = useState(false);
+  const [generateImageResponse, setGenerateImageResponse] =
+    useState<GenerateImageResponse>();
+  const [history, setHistory] = useState<GenerateImageResponse[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Load from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("generated_images");
+    if (saved) {
+      setHistory(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save to localStorage
+  const saveToHistory = (data: GenerateImageResponse) => {
+    const record = { ...data, createdAt: Date.now() };
+    const updated = [record, ...history.slice(0, 9)];
+    setHistory(updated);
+    localStorage.setItem("generated_images", JSON.stringify(updated));
+  };
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    setImageUrl("");
+    setGenerateImageResponse(undefined);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error?.error || "Failed to generate image");
+      }
+
+      const data = await res.json();
+      setImageUrl(data.imageUrl);
+      setGenerateImageResponse(data);
+      saveToHistory(data); // save on success
+    } catch (error) {
+      console.error("Image generation error:", error);
+      alert("❌ Something went wrong while generating the image.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMint = async () => {
+    setMinting(true);
+    try {
+      const res = await fetch("/api/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: imageUrl,
+          title: generateImageResponse?.title,
+          description: generateImageResponse?.description,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error?.error || "Failed to mint NFT");
+      }
+      const data = await res.json();
+      alert(`✅ NFT minted! Tx Hash: ${data.transactionHash}`);
+    } catch (error) {
+      console.error("Minting error:", error);
+      alert("❌ Something went wrong while minting the NFT.");
+    } finally {
+      setMinting(false);
+    }
+  };
+
+  const handleSelectFromHistory = (record: GenerateImageResponse) => {
+    setGenerateImageResponse(record);
+    setImageUrl(record.imageUrl);
+  };
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <aside className="w-28 md:w-40 border-r bg-gray-50 px-4 py-6 overflow-y-auto shadow-inner">
+        <h2 className="text-center font-bold text-sm text-gray-700 mb-4 tracking-wide">
+          History
+        </h2>
+        <div className="flex flex-col gap-3 items-center">
+          {history.map((item, index) => (
+            <img
+              key={index}
+              src={item.imageUrl}
+              alt={item.title}
+              onClick={() => handleSelectFromHistory(item)}
+              onKeyUp={() => handleSelectFromHistory(item)}
+              className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:scale-110 transition duration-300 ring-1 ring-gray-300 hover:ring-blue-400"
+              title={item.title}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          ))}
         </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="relative flex-1 flex flex-col items-center px-4 py-10 max-w-3xl mx-auto">
+        {/* Loader Overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          </div>
+        )}
+
+        <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-6">
+          🎨 AI Image Generator & NFT Minter
+        </h1>
+
+        <Input
+          className="border p-3 w-full text-lg"
+          placeholder="Describe an image..."
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          disabled={loading || minting}
+        />
+
+        <Button
+          className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg rounded transition duration-300"
+          onClick={handleGenerate}
+          disabled={loading || prompt.trim() === ""}
+        >
+          Generate Image
+        </Button>
+
+        {generateImageResponse?.imageUrl && (
+          <div className="mt-8 w-full text-center">
+            <img
+              src={generateImageResponse.imageUrl}
+              alt="Generated"
+              className="w-full max-w-md mx-auto rounded-lg shadow-lg transition hover:scale-105 duration-300"
+            />
+          </div>
+        )}
+
+        {generateImageResponse?.title && (
+          <div className="mt-6 w-full">
+            <h2 className="text-xl font-semibold mb-1">🖼️ Title:</h2>
+            <p className="text-gray-800">{generateImageResponse.title}</p>
+          </div>
+        )}
+
+        {generateImageResponse?.description && (
+          <div className="mt-4 w-full">
+            <h2 className="text-xl font-semibold mb-1">📝 Description:</h2>
+            <p className="text-gray-800">{generateImageResponse.description}</p>
+          </div>
+        )}
+
+        {generateImageResponse?.imageUrl && (
+          <Button
+            className="mt-6 w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg rounded transition duration-300"
+            onClick={handleMint}
+            disabled={minting}
+          >
+            {minting ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={18} />
+                Minting...
+              </span>
+            ) : (
+              "Mint as NFT"
+            )}
+          </Button>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
